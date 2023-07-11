@@ -1,14 +1,10 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+mod channel;
+mod client;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+pub struct RealtimeMessage<T> {
+    topic: String,
+    event: String,
+    payload: T,
+    reference: String,
+    join_reference: Option<String>,
 }
