@@ -1,23 +1,3 @@
-# supabase-realtime-rs
-Supabase Realtime client for Rust.
-
-## Setting up development
-
-Add the subdomain to your `/etc/hosts`.
-
-```
-127.0.0.1       realtime-dev.localhost
-```
-
-Spin up the realtime server container and database
-
-```shell
-docker-compose up -d
-```
-
-Add the development tenant via the realtime API
-
-```shell
 curl -X POST \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiIiLCJpYXQiOjE2NzEyMzc4NzMsImV4cCI6MTcwMjc3Mzk5MywiYXVkIjoiIiwic3ViIjoiIn0._ARixa2KFUVsKBf3UGR90qKLCpGjxhKcXY4akVbmeNQ' \
@@ -45,4 +25,3 @@ curl -X POST \
     }
   }' \
   http://localhost:4000/api/tenants
-```
