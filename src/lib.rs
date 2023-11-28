@@ -46,10 +46,3 @@ impl Realtime {
     /// Open a channel.
     pub async fn channel(&self) -> Result<Channel> {}
 }
-
-impl Connection {
-    /// Close the connection
-    async fn disconnect(mut self) -> Result<()> {
-        Ok(self.stream.close(None).await?)
-    }
-}
