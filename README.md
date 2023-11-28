@@ -4,6 +4,8 @@ Supabase Realtime client for Rust.
 
 Filter semantics are similar to [`postgrest-rs`](https://github.com/supabase-community/postgrest-rs).
 
+Protocol defined [here](https://supabase.com/docs/guides/realtime/protocol).
+
 ## Using
 
 ```rust
