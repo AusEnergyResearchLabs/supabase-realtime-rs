@@ -35,8 +35,6 @@ impl Realtime {
 
         let (stream, response) = connect_async(request).await?;
 
-        stream.
-
         println!("Huh? {:?}", response);
 
         Ok(Realtime {
