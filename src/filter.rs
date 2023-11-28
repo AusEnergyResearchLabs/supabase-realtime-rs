@@ -103,7 +103,44 @@ impl Filter {
     }
 
     /// Build the filter statement.
-    pub fn build() -> String {
-        String::new()
+    pub fn build(self) -> String {
+        let f: String = self
+            .queries
+            .into_iter()
+            .map(|f| format!("{}={}", f.0, f.1))
+            .collect::<Vec<String>>()
+            .join(",");
+        f
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn no_filters() {
+        let f = Filter::new();
+        let built = f.build();
+
+        assert_eq!(built, "");
+    }
+
+    #[test]
+    fn column_equals() {
+        let f = Filter::new().eq("foo_column", "bar_value");
+        let built = f.build();
+
+        assert_eq!(built, "foo_column=eq.bar_value");
+    }
+
+    #[test]
+    fn column_chain_equals() {
+        let f = Filter::new()
+            .eq("foo_column", "bar_value")
+            .eq("foo_column", "baz_value");
+        let built = f.build();
+
+        assert_eq!(built, "foo_column=eq.bar_value,foo_column=eq.baz_value");
     }
 }
