@@ -1,9 +1,19 @@
+//! Postgres change filtering.
+
 struct Filter {
     queries: Vec<(String, String)>,
 }
 
 impl Filter {
-    /// Creates a new `Builder`.
+    /// Creates a new `Filter`.
+    ///
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// let filter = Filter::new()
+    ///     .eq("column_name", "foo");
+    /// ```
     pub fn new() -> Self {
         Self {
             queries: Vec::new(),

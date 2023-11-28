@@ -1,3 +1,5 @@
+//! Realtime channel
+
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use serde::{Deserialize, Serialize};
