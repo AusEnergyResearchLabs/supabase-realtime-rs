@@ -1,11 +1,11 @@
-struct Builder {
+struct Filter {
     queries: Vec<(String, String)>,
 }
 
-impl Builder {
+impl Filter {
     /// Creates a new `Builder`.
     pub fn new() -> Self {
-        Builder {
+        Self {
             queries: Vec::new(),
         }
     }
