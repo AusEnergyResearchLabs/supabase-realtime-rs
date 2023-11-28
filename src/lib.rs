@@ -44,5 +44,7 @@ impl Realtime {
     }
 
     /// Open a channel.
-    pub async fn channel(&self) -> Result<Channel> {}
+    pub async fn channel(&self) -> Result<Channel> {
+        todo!("")
+    }
 }
