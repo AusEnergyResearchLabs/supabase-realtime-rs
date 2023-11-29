@@ -80,6 +80,7 @@ enum SubscribeState {
     Subscribed,
     TimedOut,
     Closed,
+    #[serde(rename = "CHANNEL_ERROR")]
     ChannelError,
 }
 
@@ -91,5 +92,11 @@ mod tests {
     fn deserialize_subscribe_state() {
         let output = serde_json::to_string(&SubscribeState::Closed).unwrap();
         assert_eq!(output, "\"CLOSED\"")
+    }
+
+    #[test]
+    fn serialize_subscribe_state() {
+        let output = serde_json::to_string(&SubscribeState::ChannelError).unwrap();
+        assert_eq!(output, "\"CHANNEL_ERROR\"")
     }
 }
