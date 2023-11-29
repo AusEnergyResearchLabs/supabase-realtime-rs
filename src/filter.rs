@@ -86,9 +86,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn column_equals() {
+    fn basic_filters() {
         let f = Filter::eq("foo_column", "bar_value");
-
         assert_eq!(f, "foo_column=eq.bar_value");
+        let f = Filter::neq("foo_column", "bar_value");
+        assert_eq!(f, "foo_column=neq.bar_value");
+        let f = Filter::gt("foo_column", "bar_value");
+        assert_eq!(f, "foo_column=gt.bar_value");
+        let f = Filter::gte("foo_column", "bar_value");
+        assert_eq!(f, "foo_column=gte.bar_value");
+        let f = Filter::lt("foo_column", "bar_value");
+        assert_eq!(f, "foo_column=lt.bar_value");
+        let f = Filter::lte("foo_column", "bar_value");
+        assert_eq!(f, "foo_column=lte.bar_value");
+        let f = Filter::in_("foo_column", &["bar", "baz"]);
+        assert_eq!(f, "foo_column=in.(bar,baz)");
     }
 }
