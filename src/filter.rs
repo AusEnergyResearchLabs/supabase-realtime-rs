@@ -21,7 +21,7 @@ impl Filter {
     }
 
     /// Filter by rows whos value on the stated `column` doesn't match the specified `filter`.
-    pub fn neq<T, U>(mut self, column: T, value: U) -> String
+    pub fn neq<T, U>(column: T, value: U) -> String
     where
         T: AsRef<str>,
         U: AsRef<str>,
@@ -30,7 +30,7 @@ impl Filter {
     }
 
     /// Filter by rows whose value on the stated `column` is greater than the specified `filter`.
-    pub fn gt<T, U>(mut self, column: T, value: U) -> String
+    pub fn gt<T, U>(column: T, value: U) -> String
     where
         T: AsRef<str>,
         U: AsRef<str>,
@@ -39,7 +39,7 @@ impl Filter {
     }
 
     /// Filter by rows whose value on the stated `column` is greater than or equal to the specified `filter`.
-    pub fn gte<T, U>(mut self, column: T, value: U) -> String
+    pub fn gte<T, U>(column: T, value: U) -> String
     where
         T: AsRef<str>,
         U: AsRef<str>,
@@ -48,7 +48,7 @@ impl Filter {
     }
 
     /// Filter by rows whose value on the stated `column` is less than the specified `filter`.
-    pub fn lt<T, U>(mut self, column: T, value: U) -> String
+    pub fn lt<T, U>(column: T, value: U) -> String
     where
         T: AsRef<str>,
         U: AsRef<str>,
@@ -57,7 +57,7 @@ impl Filter {
     }
 
     /// Filter by rows whose value on the stated `column` is less than or equal to the specified `filter`.
-    pub fn lte<T, U>(mut self, column: T, value: U) -> String
+    pub fn lte<T, U>(column: T, value: U) -> String
     where
         T: AsRef<str>,
         U: AsRef<str>,
@@ -66,7 +66,7 @@ impl Filter {
     }
 
     /// Filter by rows whose value on the stated `column` is found on the specified `values`.
-    pub fn in_<T, U, V>(mut self, column: T, values: U) -> String
+    pub fn in_<T, U, V>(column: T, values: U) -> String
     where
         T: AsRef<str>,
         U: IntoIterator<Item = V>,
