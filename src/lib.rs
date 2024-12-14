@@ -30,7 +30,6 @@ impl Realtime {
             .header("Connection", "Upgrade")
             .header("Upgrade", "websocket")
             .header("Sec-WebSocket-Version", "13")
-            .header("Host", "sb.aerl.cloud")
             .body(())?;
 
         let (stream, response) = connect_async(request).await?;
