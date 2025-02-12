@@ -1,3 +1,6 @@
+//! # Supabase Realtime
+//!
+
 mod channel;
 mod protocol;
 
