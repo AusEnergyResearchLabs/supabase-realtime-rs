@@ -4,11 +4,11 @@ use std::{
     task::Poll,
 };
 use tokio::{
-    sync::{mpsc, RwLock},
+    sync::{mpsc, Mutex},
     task,
 };
 
-type SharedSenders<T> = Arc<RwLock<Vec<T>>>;
+type SharedSenders<T> = Arc<Mutex<Vec<T>>>;
 
 /// Subscription instance.
 pub struct Channel {
@@ -50,9 +50,9 @@ impl Channel {
         })
         .abort_handle();
 
-        let broadcast_subscriptions = SharedSenders::new(RwLock::new(Vec::new()));
-        let presence_subscriptions = SharedSenders::new(RwLock::new(Vec::new()));
-        let postgres_subscriptions = SharedSenders::new(RwLock::new(Vec::new()));
+        let broadcast_subscriptions = SharedSenders::new(Mutex::new(Vec::new()));
+        let presence_subscriptions = SharedSenders::new(Mutex::new(Vec::new()));
+        let postgres_subscriptions = SharedSenders::new(Mutex::new(Vec::new()));
 
         let mut receiver = receiver;
         let broadcast = broadcast_subscriptions.clone();
@@ -63,7 +63,7 @@ impl Channel {
                 while let Some(message) = receiver.recv().await {
                     match message {
                         PhoenixMessage::Broadcast(bcast) => {
-                            broadcast.write().await.retain(
+                            broadcast.lock().await.retain(
                                 |(event, sender): &(String, mpsc::Sender<BroadcastMessage>)| {
                                     if event != bcast.payload.event.as_str() {
                                         true
@@ -78,7 +78,7 @@ impl Channel {
                             );
                         }
                         PhoenixMessage::PresenceState(state) => {
-                            presence.write().await.retain(
+                            presence.lock().await.retain(
                                 |sender: &mpsc::Sender<PresenceMessage>| match sender
                                     .try_send(PresenceMessage::State(state.clone()))
                                 {
@@ -89,7 +89,7 @@ impl Channel {
                             );
                         }
                         PhoenixMessage::PresenceDiff(diff) => {
-                            presence.write().await.retain(
+                            presence.lock().await.retain(
                                 |sender: &mpsc::Sender<PresenceMessage>| match sender
                                     .try_send(PresenceMessage::Diff(diff.clone()))
                                 {
@@ -100,7 +100,7 @@ impl Channel {
                             );
                         }
                         PhoenixMessage::Postgres(pg) => {
-                            postgres.write().await.retain(
+                            postgres.lock().await.retain(
                                 |sender: &mpsc::Sender<PostgresMessage>| match sender
                                     .try_send(pg.clone())
                                 {
@@ -135,7 +135,7 @@ impl Channel {
     ) -> Subscription<BroadcastMessage> {
         let (sender, receiver) = mpsc::channel(128);
         self.broadcast_subscriptions
-            .write()
+            .lock()
             .await
             .push((event.into(), sender));
         Subscription { receiver }
@@ -160,7 +160,7 @@ impl Channel {
     /// Create a broadcast subscriber.
     pub async fn on_presence(&mut self) -> Subscription<PresenceMessage> {
         let (sender, receiver) = mpsc::channel(128);
-        self.presence_subscriptions.write().await.push(sender);
+        self.presence_subscriptions.lock().await.push(sender);
         Subscription { receiver }
     }
 
@@ -199,7 +199,7 @@ impl Channel {
     /// Create a broadcast subscriber.
     pub async fn on_postgres(&mut self) -> Subscription<PostgresMessage> {
         let (sender, receiver) = mpsc::channel(128);
-        self.postgres_subscriptions.write().await.push(sender);
+        self.postgres_subscriptions.lock().await.push(sender);
         Subscription { receiver }
     }
 }
