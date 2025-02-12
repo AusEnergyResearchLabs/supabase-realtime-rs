@@ -32,6 +32,8 @@ pub struct Client {
     sender: mpsc::Sender<PhoenixMessage>,
     receivers: Arc<Mutex<Vec<(String, mpsc::Sender<PhoenixMessage>)>>>,
     reference: Arc<AtomicU32>,
+    incoming_handle: task::AbortHandle,
+    outgoing_handle: task::AbortHandle,
 }
 
 impl Client {
@@ -59,8 +61,8 @@ impl Client {
             Arc::new(Mutex::new(Vec::new()));
         let incomming_receivers = receivers.clone();
 
-        task::spawn(async move {
         // incoming event listener
+        let incoming_handle = task::spawn(async move {
             while let Some(message) = read.next().await {
                 let message = match message {
                     Ok(Message::Text(text)) => {
@@ -94,30 +96,32 @@ impl Client {
                     }
                 });
             }
-        });
+        })
+        .abort_handle();
 
         // outgoing queue
         let (sender, mut outgoing_receiver) = mpsc::channel(128);
-        task::spawn(async move {
-            loop {
-                if let Some(message) = outgoing_receiver.recv().await {
-                    tracing::debug!("send: {:?}", message);
-                    match serde_json::to_string(&message) {
-                        Ok(text) => {
-                            if let Err(e) = write.send(Message::Text(text)).await {
-                                tracing::error!("{}", e);
-                            }
+        let outgoing_handle = task::spawn(async move {
+            while let Some(message) = outgoing_receiver.recv().await {
+                tracing::debug!("send: {:?}", message);
+                match serde_json::to_string(&message) {
+                    Ok(text) => {
+                        if let Err(e) = write.send(Message::Text(text)).await {
+                            tracing::error!("{}", e);
                         }
-                        Err(e) => tracing::error!("Failed to serialize message: {}", e),
                     }
+                    Err(e) => tracing::error!("Failed to serialize message: {}", e),
                 }
             }
-        });
+        })
+        .abort_handle();
 
         Ok(Client {
             sender,
             receivers,
             reference: Arc::new(AtomicU32::new(1)),
+            incoming_handle,
+            outgoing_handle,
         })
     }
 
@@ -202,6 +206,14 @@ impl Client {
                 }
             }
         }
+    }
+}
+
+impl Drop for Client {
+    fn drop(&mut self) {
+        // close background tasks
+        self.incoming_handle.abort();
+        self.outgoing_handle.abort();
     }
 }
 
