@@ -226,6 +226,7 @@ pub struct BroadcastMessage {
     pub reference: Option<String>,
 }
 
+/// Broadcast message payload.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BroadcastPayload {
     pub event: String,
@@ -291,6 +292,7 @@ impl Config {
     }
 }
 
+/// Broadcast channel configuration.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct BroadcastConfig {
     /// Server confirms each message has been received.
@@ -300,11 +302,13 @@ pub struct BroadcastConfig {
     pub self_broadcast: bool,
 }
 
+/// Presence channel configuration.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PresenceConfig {
     pub key: String,
 }
 
+/// Postgres CDC channel configuration.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PostgresConfig {
     pub id: Option<i64>,
