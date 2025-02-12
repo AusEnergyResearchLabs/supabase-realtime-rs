@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use futures::StreamExt;
+use std::collections::HashMap;
 use supabase_realtime::{BroadcastConfig, BroadcastPayload, Client};
 
 #[tokio::main]
