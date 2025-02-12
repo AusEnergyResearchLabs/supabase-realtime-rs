@@ -1,5 +1,4 @@
 use crate::{fetch_ref, protocol::*, Error};
-use serde_json::Map;
 use std::{
     sync::{atomic::AtomicU32, Arc},
     task::Poll,
@@ -35,7 +34,7 @@ impl Channel {
                 if let Err(e) = heartbeat_sender
                     .send(PhoenixMessage::Heartbeat(HeartbeatMessage {
                         topic: heartbeat_topic.clone(),
-                        payload: Map::new(),
+                        payload: Payload::new(),
                         reference: fetch_ref(&heartbeat_reference).to_string(),
                     }))
                     .await

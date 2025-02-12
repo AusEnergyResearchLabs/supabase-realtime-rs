@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::Value;
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -98,7 +98,7 @@ impl<'de> Deserialize<'de> for Topic {
 }
 
 /// Generic loosely-typed payload.
-pub type Payload = Map<String, Value>;
+pub type Payload = BTreeMap<String, Value>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JoinMessage {
