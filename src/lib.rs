@@ -125,16 +125,19 @@ impl Client {
 
     /// Update the acess token.
     pub async fn access_token(&self, token: impl Into<String>) -> Result<(), Error> {
-        let reference = fetch_ref(&self.reference).to_string();
-        self.sender
-            .send(PhoenixMessage::AccessToken(AccessTokenMessage {
-                topic: Topic::new(""),
-                payload: AccessTokenPayload {
-                    access_token: token.into(),
-                },
-                reference,
-            }))
-            .await?;
+        let token = token.into();
+        for (topic, _) in self.receivers.lock().await.iter() {
+            let reference = fetch_ref(&self.reference).to_string();
+            self.sender
+                .send(PhoenixMessage::AccessToken(AccessTokenMessage {
+                    topic: Topic::new(topic),
+                    payload: AccessTokenPayload {
+                        access_token: token.clone(),
+                    },
+                    reference,
+                }))
+                .await?;
+        }
 
         Ok(())
     }
