@@ -1,8 +1,18 @@
-use crate::protocol::{
-    BroadcastMessage, HeartbeatMessage, PhoenixMessage, PostgresChangesMessage,
-    PresenceDiffMessage, PresenceStateMessage, Topic,
+use crate::{
+    fetch_ref,
+    protocol::{
+        BroadcastMessage, HeartbeatMessage, PhoenixMessage, PostgresChangesMessage,
+        PresenceDiffMessage, PresenceStateMessage, Topic,
+    },
+    BroadcastPayload, Error,
 };
-use std::{collections::HashMap, marker::PhantomData, task::Poll, time::Duration};
+use std::{
+    collections::HashMap,
+    marker::PhantomData,
+    sync::{atomic::AtomicU32, Arc},
+    task::Poll,
+    time::Duration,
+};
 use tokio::{
     sync::mpsc::{Receiver, Sender},
     task::{self, AbortHandle},
@@ -24,6 +34,7 @@ pub struct Subscription<T> {
     pub(crate) receiver: Receiver<PhoenixMessage>,
     pub(crate) sender: Sender<PhoenixMessage>,
     pub(crate) heartbeat: AbortHandle,
+    pub(crate) reference: Arc<AtomicU32>,
 }
 
 impl<T> Subscription<T> {
@@ -31,10 +42,12 @@ impl<T> Subscription<T> {
         topic: Topic,
         receiver: Receiver<PhoenixMessage>,
         sender: Sender<PhoenixMessage>,
+        reference: Arc<AtomicU32>,
     ) -> Self {
         // spawn heartbeat task. cleaned up on drop.
         let heartbeat_sender = sender.clone();
         let heartbeat_topic = topic.clone();
+        let heartbeat_reference = reference.clone();
         let heartbeat = task::spawn(async move {
             loop {
                 tokio::time::sleep(Duration::from_secs(25)).await;
@@ -42,7 +55,7 @@ impl<T> Subscription<T> {
                     .send(PhoenixMessage::Heartbeat(HeartbeatMessage {
                         topic: heartbeat_topic.clone(),
                         payload: HashMap::new(),
-                        reference: "".to_owned(), // todo: use an actual reference
+                        reference: fetch_ref(&heartbeat_reference).to_string(),
                     }))
                     .await
                 {
@@ -58,6 +71,7 @@ impl<T> Subscription<T> {
             sender,
             receiver,
             heartbeat,
+            reference,
         }
     }
 }

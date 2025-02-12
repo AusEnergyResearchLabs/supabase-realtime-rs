@@ -165,15 +165,18 @@ impl Client {
 
             match response {
                 Some(PhoenixMessage::Reply(reply)) => {
-                    if reply.reference == reference {
-                        if reply.payload.status == Status::Ok {
-                            return Ok(Subscription::<Broadcast>::new(
-                                topic.into(),
-                                receiver,
-                                self.sender.clone(),
-                            ));
-                        } else {
-                            return Err(Error::from("failed to join channel"));
+                    if let Some(response_ref) = reply.reference {
+                        if response_ref == reference {
+                            if reply.payload.status == Status::Ok {
+                                return Ok(Subscription::<Broadcast>::new(
+                                    topic.into(),
+                                    receiver,
+                                    self.sender.clone(),
+                                    self.reference.clone(),
+                                ));
+                            } else {
+                                return Err(Error::from("failed to join channel"));
+                            }
                         }
                     }
                 }
