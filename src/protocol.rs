@@ -207,6 +207,7 @@ pub struct PostgresChangeData {
     pub errors: Option<String>,
 }
 
+/// Postgres event kind.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum PostgresEvent {
