@@ -11,12 +11,8 @@ use std::{
     marker::PhantomData,
     sync::{atomic::AtomicU32, Arc},
     task::Poll,
-    time::Duration,
 };
-use tokio::{
-    sync::mpsc::{Receiver, Sender},
-    task::{self, AbortHandle},
-};
+use tokio::{sync::mpsc, task};
 
 #[derive(Debug)]
 pub struct Broadcast;
@@ -31,17 +27,17 @@ pub struct Postgres;
 pub struct Subscription<T> {
     pub(crate) _t: PhantomData<T>,
     pub(crate) topic: Topic,
-    pub(crate) receiver: Receiver<PhoenixMessage>,
-    pub(crate) sender: Sender<PhoenixMessage>,
-    pub(crate) heartbeat: AbortHandle,
+    pub(crate) receiver: mpsc::Receiver<PhoenixMessage>,
+    pub(crate) sender: mpsc::Sender<PhoenixMessage>,
+    pub(crate) heartbeat: task::AbortHandle,
     pub(crate) reference: Arc<AtomicU32>,
 }
 
 impl<T> Subscription<T> {
     pub fn new(
         topic: Topic,
-        receiver: Receiver<PhoenixMessage>,
-        sender: Sender<PhoenixMessage>,
+        receiver: mpsc::Receiver<PhoenixMessage>,
+        sender: mpsc::Sender<PhoenixMessage>,
         reference: Arc<AtomicU32>,
     ) -> Self {
         // spawn heartbeat task. cleaned up on drop.
@@ -50,7 +46,7 @@ impl<T> Subscription<T> {
         let heartbeat_reference = reference.clone();
         let heartbeat = task::spawn(async move {
             loop {
-                tokio::time::sleep(Duration::from_secs(25)).await;
+                tokio::time::sleep(tokio::time::Duration::from_secs(25)).await;
                 if let Err(e) = heartbeat_sender
                     .send(PhoenixMessage::Heartbeat(HeartbeatMessage {
                         topic: heartbeat_topic.clone(),
@@ -103,7 +99,7 @@ impl futures::Stream for Subscription<Broadcast> {
     fn poll_next(
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Self::Item>> {
+    ) -> Poll<Option<Self::Item>> {
         match self.receiver.poll_recv(cx) {
             Poll::Ready(msg) => match msg {
                 Some(PhoenixMessage::Broadcast(bcast)) => Poll::Ready(Some(bcast)),
