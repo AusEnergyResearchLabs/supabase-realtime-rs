@@ -108,8 +108,7 @@ impl Client {
 
     /// Update the acess token.
     pub async fn access_token(&mut self, token: impl Into<String>) -> Result<(), Error> {
-        let reference = self.reference.fetch_add(1, Ordering::Relaxed).to_string();
-
+        let reference = fetch_ref(&self.reference).to_string();
         self.sender
             .send(PhoenixMessage::AccessToken(AccessTokenMessage {
                 topic: Topic::new(""),
@@ -150,7 +149,7 @@ impl Client {
         let (sender, mut receiver) = mpsc::channel(128);
         self.receivers.lock().await.push((topic.to_owned(), sender));
 
-        let reference = self.reference.fetch_add(1, Ordering::Relaxed).to_string();
+        let reference = fetch_ref(&self.reference).to_string();
         self.sender
             .send(PhoenixMessage::Join(JoinMessage {
                 topic: topic.clone().into(),
@@ -185,4 +184,9 @@ impl Client {
             }
         }
     }
+}
+
+/// Fetch and increment atomic reference counter.
+pub(crate) fn fetch_ref(r: &AtomicU32) -> u32 {
+    r.fetch_add(1, Ordering::Relaxed)
 }
