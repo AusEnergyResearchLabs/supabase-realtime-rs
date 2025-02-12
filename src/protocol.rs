@@ -105,6 +105,11 @@ pub struct JoinMessage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JoinPayload {
+    pub config: Config,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LeaveMessage {
     pub topic: Topic,
     pub payload: HashMap<String, String>,
@@ -129,11 +134,30 @@ pub struct ReplyMessage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReplyPayload {
+    pub response: ReplyResponse,
+    pub status: Status,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReplyResponse {
+    pub postgres_changes: Option<Vec<PostgresChangeData>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemMessage {
     pub topic: Topic,
     pub payload: SystemPayload,
     #[serde(rename = "ref")]
     pub reference: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SystemPayload {
+    pub channel: String,
+    pub extension: String,
+    pub message: String,
+    pub status: Status,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -153,6 +177,11 @@ pub struct AccessTokenMessage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccessTokenPayload {
+    pub access_token: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PostgresChangesMessage {
     pub topic: Topic,
     pub payload: PostgresChangesPayload,
@@ -161,11 +190,48 @@ pub struct PostgresChangesMessage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PostgresChangesPayload {
+    pub data: PostgresChangeData,
+    pub ids: Vec<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PostgresChangeData {
+    pub schema: String,
+    pub table: String,
+    pub commit_timestamp: String,
+    #[serde(rename = "eventType")]
+    pub event_type: PostgresEvent,
+    pub new: HashMap<String, serde_json::Value>,
+    pub old: HashMap<String, serde_json::Value>,
+    pub errors: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum PostgresEvent {
+    #[default]
+    #[serde(rename = "*")]
+    All,
+    Insert,
+    Update,
+    Delete,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BroadcastMessage {
     pub topic: Topic,
     pub payload: BroadcastPayload,
     #[serde(rename = "ref")]
     pub reference: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BroadcastPayload {
+    pub event: String,
+    pub payload: HashMap<String, serde_json::Value>,
+    #[serde(rename = "type")]
+    pub broadcast_type: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -185,52 +251,14 @@ pub struct PresenceDiffMessage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PresenceMetas {
-    pub metas: Vec<PresenceMeta>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PresencePayload {
     pub joins: HashMap<String, PresenceMetas>,
     pub leaves: HashMap<String, PresenceMetas>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct JoinPayload {
-    pub config: Config,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ReplyPayload {
-    pub response: ReplyResponse,
-    pub status: Status,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SystemPayload {
-    pub channel: String,
-    pub extension: String,
-    pub message: String,
-    pub status: Status,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AccessTokenPayload {
-    pub access_token: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PostgresChangesPayload {
-    pub data: PostgresChangeData,
-    pub ids: Vec<i64>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BroadcastPayload {
-    pub event: String,
-    pub payload: HashMap<String, serde_json::Value>,
-    #[serde(rename = "type")]
-    pub broadcast_type: String,
+pub struct PresenceMetas {
+    pub metas: Vec<PresenceMeta>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -287,38 +315,10 @@ pub struct PostgresConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PostgresChangeData {
-    pub schema: String,
-    pub table: String,
-    pub commit_timestamp: String,
-    #[serde(rename = "eventType")]
-    pub event_type: PostgresEvent,
-    pub new: HashMap<String, serde_json::Value>,
-    pub old: HashMap<String, serde_json::Value>,
-    pub errors: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PresenceMeta {
     pub phx_ref: String,
     pub name: String,
     pub t: f64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ReplyResponse {
-    pub postgres_changes: Option<Vec<PostgresChangeData>>,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum PostgresEvent {
-    #[default]
-    #[serde(rename = "*")]
-    All,
-    Insert,
-    Update,
-    Delete,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
