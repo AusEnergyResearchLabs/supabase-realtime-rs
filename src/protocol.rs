@@ -312,8 +312,9 @@ pub struct PresenceMetas {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PresenceMeta {
     pub phx_ref: String,
-    pub name: String,
-    pub t: f64,
+    pub phx_ref_prev: Option<String>,
+    pub name: Option<String>,
+    pub t: Option<f64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
