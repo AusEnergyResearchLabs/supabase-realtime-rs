@@ -59,8 +59,8 @@ impl Client {
             Arc::new(Mutex::new(Vec::new()));
         let incomming_receivers = receivers.clone();
 
-        // incomming event listener
         task::spawn(async move {
+        // incoming event listener
             while let Some(message) = read.next().await {
                 let message = match message {
                     Ok(Message::Text(text)) => {
