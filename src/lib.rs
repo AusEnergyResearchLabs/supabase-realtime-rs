@@ -122,7 +122,7 @@ impl Client {
     }
 
     /// Update the acess token.
-    pub async fn access_token(&mut self, token: impl Into<String>) -> Result<(), Error> {
+    pub async fn access_token(&self, token: impl Into<String>) -> Result<(), Error> {
         let reference = fetch_ref(&self.reference).to_string();
         self.sender
             .send(PhoenixMessage::AccessToken(AccessTokenMessage {
