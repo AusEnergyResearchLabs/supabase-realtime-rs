@@ -2,26 +2,7 @@
 
 Supabase Realtime client for Rust.
 
-Filter semantics are similar to [`postgrest-rs`](https://github.com/supabase-community/postgrest-rs).
-
 Protocol defined [here](https://supabase.com/docs/guides/realtime/protocol).
-
-## Using
-
-```rust
-// Build a client.
-let client = Client::builder()
-    .params()
-    .build();
-
-// Create a connection.
-let conn = client.connect().await?;
-
-// Subscribe to listen for an event.
-let channel = conn.
-    .on()
-    .subscribe().await?;
-```
 
 ## Setting up development
 
