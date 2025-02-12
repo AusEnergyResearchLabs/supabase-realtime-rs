@@ -265,7 +265,9 @@ impl Config {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct BroadcastConfig {
+    /// Server confirms each message has been received.
     pub ack: bool,
+    /// Receive own messages.
     #[serde(rename = "self")]
     pub self_broadcast: bool,
 }
