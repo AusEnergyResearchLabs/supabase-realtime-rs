@@ -78,21 +78,6 @@ impl<T> Drop for Subscription<T> {
     }
 }
 
-impl Subscription<Broadcast> {
-    /// Send a broadcast message
-    pub async fn broadcast(&self, payload: BroadcastPayload) -> Result<(), Error> {
-        self.sender
-            .send(PhoenixMessage::Broadcast(BroadcastMessage {
-                topic: self.topic.clone(),
-                payload,
-                reference: Some(fetch_ref(&self.reference).to_string()),
-            }))
-            .await?;
-
-        Ok(())
-    }
-}
-
 impl futures::Stream for Subscription<Broadcast> {
     type Item = BroadcastMessage;
 

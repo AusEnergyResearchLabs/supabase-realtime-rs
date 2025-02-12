@@ -27,12 +27,15 @@ pub async fn main() {
     // Send a broadcast message to the channel "test"
     let mut payload = Map::new();
     payload.insert("Test message".to_owned(), "Hello world".into());
-    channel
-        .broadcast(BroadcastPayload {
-            event: "Test message".to_string(),
-            payload,
-            broadcast_type: "broadcast".to_string(),
-        })
+    client
+        .broadcast(
+            "test",
+            BroadcastPayload {
+                event: "Test message".to_string(),
+                payload,
+                broadcast_type: "broadcast".to_string(),
+            },
+        )
         .await
         .unwrap();
 
