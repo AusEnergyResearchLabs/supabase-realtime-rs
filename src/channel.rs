@@ -25,32 +25,26 @@ pub struct Postgres;
 /// Subscription instance.
 pub struct Subscription<T> {
     pub(crate) _t: PhantomData<T>,
-    pub(crate) topic: Topic,
     pub(crate) receiver: mpsc::Receiver<PhoenixMessage>,
-    pub(crate) sender: mpsc::Sender<PhoenixMessage>,
     pub(crate) heartbeat: task::AbortHandle,
-    pub(crate) reference: Arc<AtomicU32>,
 }
 
 impl<T> Subscription<T> {
-    pub fn new(
+    pub(crate) fn new(
         topic: Topic,
         receiver: mpsc::Receiver<PhoenixMessage>,
         sender: mpsc::Sender<PhoenixMessage>,
         reference: Arc<AtomicU32>,
     ) -> Self {
         // spawn heartbeat task. cleaned up on drop.
-        let heartbeat_sender = sender.clone();
-        let heartbeat_topic = topic.clone();
-        let heartbeat_reference = reference.clone();
         let heartbeat = task::spawn(async move {
             loop {
                 tokio::time::sleep(tokio::time::Duration::from_secs(25)).await;
-                if let Err(e) = heartbeat_sender
+                if let Err(e) = sender
                     .send(PhoenixMessage::Heartbeat(HeartbeatMessage {
-                        topic: heartbeat_topic.clone(),
+                        topic: topic.clone(),
                         payload: Map::new(),
-                        reference: fetch_ref(&heartbeat_reference).to_string(),
+                        reference: fetch_ref(&reference).to_string(),
                     }))
                     .await
                 {
@@ -62,11 +56,8 @@ impl<T> Subscription<T> {
 
         Self {
             _t: PhantomData::default(),
-            topic,
-            sender,
             receiver,
             heartbeat,
-            reference,
         }
     }
 }
