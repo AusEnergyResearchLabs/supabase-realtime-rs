@@ -97,7 +97,7 @@ impl<'de> Deserialize<'de> for Topic {
 }
 
 /// Generic loosely-typed payload.
-type Payload = Map<String, Value>;
+pub type Payload = Map<String, Value>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JoinMessage {
@@ -236,7 +236,15 @@ pub struct BroadcastPayload {
     pub event: String,
     pub payload: Payload,
     #[serde(rename = "type")]
-    pub broadcast_type: String,
+    pub broadcast_type: BroadcastType,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum BroadcastType {
+    Broadcast,
+    Presence,
+    Postgres,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

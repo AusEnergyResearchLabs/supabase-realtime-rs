@@ -5,14 +5,14 @@ mod channel;
 mod protocol;
 
 pub use protocol::{
-    BroadcastConfig, BroadcastPayload, PostgresConfig, PostgresEvent, PresenceConfig,
+    BroadcastConfig, BroadcastPayload, Payload, PostgresConfig, PostgresEvent, PresenceConfig,
 };
 
 use channel::{Broadcast, Subscription};
 use futures::{SinkExt, StreamExt};
 use protocol::{
-    AccessTokenMessage, AccessTokenPayload, BroadcastMessage, Config, JoinMessage, JoinPayload,
-    PhoenixMessage, Status, Topic,
+    AccessTokenMessage, AccessTokenPayload, BroadcastMessage, BroadcastType, Config, JoinMessage,
+    JoinPayload, PhoenixMessage, Status, Topic,
 };
 use std::sync::{
     atomic::{AtomicU32, Ordering},
@@ -145,12 +145,17 @@ impl Client {
     pub async fn broadcast(
         &self,
         topic: impl Into<String>,
-        payload: BroadcastPayload,
+        event: impl Into<String>,
+        payload: Payload,
     ) -> Result<(), Error> {
         self.sender
             .send(PhoenixMessage::Broadcast(BroadcastMessage {
                 topic: Topic::new(topic),
-                payload,
+                payload: BroadcastPayload {
+                    event: event.into(),
+                    payload,
+                    broadcast_type: BroadcastType::Broadcast,
+                },
                 reference: Some(fetch_ref(&self.reference).to_string()),
             }))
             .await?;
