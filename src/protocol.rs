@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "event")]
@@ -19,7 +20,7 @@ pub enum PhoenixMessage {
     #[serde(rename = "access_token")]
     AccessToken(AccessTokenMessage),
     #[serde(rename = "postgres_changes")]
-    PostgresChanges(PostgresChangesMessage),
+    Postgres(PostgresMessage),
     #[serde(rename = "broadcast")]
     Broadcast(BroadcastMessage),
     #[serde(rename = "presence_state")]
@@ -38,7 +39,7 @@ impl PhoenixMessage {
             PhoenixMessage::System(sys) => &sys.topic,
             PhoenixMessage::Heartbeat(heart) => &heart.topic,
             PhoenixMessage::AccessToken(acc) => &acc.topic,
-            PhoenixMessage::PostgresChanges(pg) => &pg.topic,
+            PhoenixMessage::Postgres(pg) => &pg.topic,
             PhoenixMessage::Broadcast(bcast) => &bcast.topic,
             PhoenixMessage::PresenceState(pstate) => &pstate.topic,
             PhoenixMessage::PresenceDiff(pdiff) => &pdiff.topic,
@@ -218,7 +219,7 @@ pub struct AccessTokenPayload {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PostgresChangesMessage {
+pub struct PostgresMessage {
     pub topic: Topic,
     pub payload: PostgresChangesPayload,
     #[serde(rename = "ref")]
@@ -267,7 +268,8 @@ pub struct BroadcastMessage {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BroadcastPayload {
     pub event: String,
-    pub payload: Payload,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payload: Option<Payload>,
     #[serde(rename = "type")]
     pub broadcast_type: BroadcastType,
 }
@@ -283,7 +285,7 @@ pub enum BroadcastType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PresenceStateMessage {
     pub topic: Topic,
-    pub payload: Payload,
+    pub payload: BTreeMap<String, PresenceMetas>,
     #[serde(rename = "ref")]
     pub reference: Option<String>,
 }
@@ -298,8 +300,13 @@ pub struct PresenceDiffMessage {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PresencePayload {
-    pub joins: Payload,
-    pub leaves: Payload,
+    pub joins: BTreeMap<String, PresenceMetas>,
+    pub leaves: BTreeMap<String, PresenceMetas>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PresenceMetas {
+    pub metas: Vec<PresenceMeta>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
