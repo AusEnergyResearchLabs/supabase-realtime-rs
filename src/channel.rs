@@ -1,9 +1,6 @@
-use crate::{
-    protocol::{
-        BroadcastMessage, HeartbeatMessage, LeaveMessage, PhoenixMessage, PostgresChangesMessage,
-        PresenceDiffMessage, PresenceStateMessage, Topic,
-    },
-    Error,
+use crate::protocol::{
+    BroadcastMessage, HeartbeatMessage, PhoenixMessage, PostgresChangesMessage,
+    PresenceDiffMessage, PresenceStateMessage, Topic,
 };
 use std::{collections::HashMap, marker::PhantomData, task::Poll, time::Duration};
 use tokio::{
