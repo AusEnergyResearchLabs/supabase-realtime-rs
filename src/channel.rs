@@ -3,18 +3,23 @@ use std::{
     sync::{atomic::AtomicU32, Arc},
     task::Poll,
 };
-use tokio::{sync::mpsc, task};
+use tokio::{
+    sync::{mpsc, RwLock},
+    task,
+};
+
+type SharedSenders<T> = Arc<RwLock<Vec<T>>>;
 
 /// Subscription instance.
 pub struct Channel {
     topic: Topic,
-    receiver: mpsc::Receiver<PhoenixMessage>,
     sender: mpsc::Sender<PhoenixMessage>,
     reference: Arc<AtomicU32>,
     heartbeat_handle: task::AbortHandle,
-    broadcast_subscriptions: Vec<(String, mpsc::Sender<BroadcastMessage>)>,
-    presence_subscriptions: Vec<mpsc::Sender<PresenceMessage>>,
-    postgres_subscriptions: Vec<mpsc::Sender<PostgresMessage>>,
+    incoming_handle: task::AbortHandle,
+    broadcast_subscriptions: SharedSenders<(String, mpsc::Sender<BroadcastMessage>)>,
+    presence_subscriptions: SharedSenders<mpsc::Sender<PresenceMessage>>,
+    postgres_subscriptions: SharedSenders<mpsc::Sender<PostgresMessage>>,
 }
 
 impl Channel {
@@ -45,22 +50,94 @@ impl Channel {
         })
         .abort_handle();
 
+        let broadcast_subscriptions = SharedSenders::new(RwLock::new(Vec::new()));
+        let presence_subscriptions = SharedSenders::new(RwLock::new(Vec::new()));
+        let postgres_subscriptions = SharedSenders::new(RwLock::new(Vec::new()));
+
+        let mut receiver = receiver;
+        let broadcast = broadcast_subscriptions.clone();
+        let presence = presence_subscriptions.clone();
+        let postgres = postgres_subscriptions.clone();
+        let incoming_handle =
+            tokio::spawn(async move {
+                while let Some(message) = receiver.recv().await {
+                    match message {
+                        PhoenixMessage::Broadcast(bcast) => {
+                            broadcast.write().await.retain(
+                                |(event, sender): &(String, mpsc::Sender<BroadcastMessage>)| {
+                                    if event != bcast.payload.event.as_str() {
+                                        true
+                                    } else {
+                                        match sender.try_send(bcast.clone()) {
+                                            Ok(_) => true,
+                                            Err(mpsc::error::TrySendError::Full(_)) => true,
+                                            Err(mpsc::error::TrySendError::Closed(_)) => false,
+                                        }
+                                    }
+                                },
+                            );
+                        }
+                        PhoenixMessage::PresenceState(state) => {
+                            presence.write().await.retain(
+                                |sender: &mpsc::Sender<PresenceMessage>| match sender
+                                    .try_send(PresenceMessage::State(state.clone()))
+                                {
+                                    Ok(_) => true,
+                                    Err(mpsc::error::TrySendError::Full(_)) => true,
+                                    Err(mpsc::error::TrySendError::Closed(_)) => false,
+                                },
+                            );
+                        }
+                        PhoenixMessage::PresenceDiff(diff) => {
+                            presence.write().await.retain(
+                                |sender: &mpsc::Sender<PresenceMessage>| match sender
+                                    .try_send(PresenceMessage::Diff(diff.clone()))
+                                {
+                                    Ok(_) => true,
+                                    Err(mpsc::error::TrySendError::Full(_)) => true,
+                                    Err(mpsc::error::TrySendError::Closed(_)) => false,
+                                },
+                            );
+                        }
+                        PhoenixMessage::Postgres(pg) => {
+                            postgres.write().await.retain(
+                                |sender: &mpsc::Sender<PostgresMessage>| match sender
+                                    .try_send(pg.clone())
+                                {
+                                    Ok(_) => true,
+                                    Err(mpsc::error::TrySendError::Full(_)) => true,
+                                    Err(mpsc::error::TrySendError::Closed(_)) => false,
+                                },
+                            );
+                        }
+                        _ => {}
+                    }
+                }
+            })
+            .abort_handle();
+
         Self {
             topic,
-            receiver,
             sender,
             reference,
             heartbeat_handle,
-            broadcast_subscriptions: Vec::new(),
-            presence_subscriptions: Vec::new(),
-            postgres_subscriptions: Vec::new(),
+            incoming_handle,
+            broadcast_subscriptions,
+            presence_subscriptions,
+            postgres_subscriptions,
         }
     }
 
     /// Create a broadcast subscriber.
-    pub fn on_broadcast(&mut self, event: impl Into<String>) -> Subscription<BroadcastMessage> {
+    pub async fn on_broadcast(
+        &mut self,
+        event: impl Into<String>,
+    ) -> Subscription<BroadcastMessage> {
         let (sender, receiver) = mpsc::channel(128);
-        self.broadcast_subscriptions.push((event.into(), sender));
+        self.broadcast_subscriptions
+            .write()
+            .await
+            .push((event.into(), sender));
         Subscription { receiver }
     }
 
@@ -81,9 +158,9 @@ impl Channel {
     }
 
     /// Create a broadcast subscriber.
-    pub fn on_presence(&mut self) -> Subscription<PresenceMessage> {
+    pub async fn on_presence(&mut self) -> Subscription<PresenceMessage> {
         let (sender, receiver) = mpsc::channel(128);
-        self.presence_subscriptions.push(sender);
+        self.presence_subscriptions.write().await.push(sender);
         Subscription { receiver }
     }
 
@@ -120,67 +197,17 @@ impl Channel {
     }
 
     /// Create a broadcast subscriber.
-    pub fn on_postgres(&mut self) -> Subscription<PostgresMessage> {
+    pub async fn on_postgres(&mut self) -> Subscription<PostgresMessage> {
         let (sender, receiver) = mpsc::channel(128);
-        self.postgres_subscriptions.push(sender);
+        self.postgres_subscriptions.write().await.push(sender);
         Subscription { receiver }
-    }
-
-    /// Listen for messages and feed subscribers.
-    pub async fn subscribe(&mut self) -> Result<(), Error> {
-        while let Some(message) = self.receiver.recv().await {
-            match message {
-                PhoenixMessage::Broadcast(bcast) => {
-                    self.broadcast_subscriptions.retain(|(event, sender)| {
-                        if event != bcast.payload.event.as_str() {
-                            true
-                        } else {
-                            match sender.try_send(bcast.clone()) {
-                                Ok(_) => true,
-                                Err(mpsc::error::TrySendError::Full(_)) => true,
-                                Err(mpsc::error::TrySendError::Closed(_)) => false,
-                            }
-                        }
-                    });
-                }
-                PhoenixMessage::PresenceState(state) => {
-                    self.presence_subscriptions.retain(|sender| {
-                        match sender.try_send(PresenceMessage::State(state.clone())) {
-                            Ok(_) => true,
-                            Err(mpsc::error::TrySendError::Full(_)) => true,
-                            Err(mpsc::error::TrySendError::Closed(_)) => false,
-                        }
-                    });
-                }
-                PhoenixMessage::PresenceDiff(diff) => {
-                    self.presence_subscriptions.retain(|sender| {
-                        match sender.try_send(PresenceMessage::Diff(diff.clone())) {
-                            Ok(_) => true,
-                            Err(mpsc::error::TrySendError::Full(_)) => true,
-                            Err(mpsc::error::TrySendError::Closed(_)) => false,
-                        }
-                    });
-                }
-                PhoenixMessage::Postgres(pg) => {
-                    self.postgres_subscriptions.retain(|sender| {
-                        match sender.try_send(pg.clone()) {
-                            Ok(_) => true,
-                            Err(mpsc::error::TrySendError::Full(_)) => true,
-                            Err(mpsc::error::TrySendError::Closed(_)) => false,
-                        }
-                    });
-                }
-                _ => {}
-            }
-        }
-
-        Ok(())
     }
 }
 
 impl Drop for Channel {
     fn drop(&mut self) {
         self.heartbeat_handle.abort();
+        self.incoming_handle.abort();
     }
 }
 

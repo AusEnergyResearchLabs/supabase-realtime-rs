@@ -32,7 +32,7 @@ pub async fn main() -> Result<(), Error> {
         .await?;
 
     // Subscribe to broadcast messages
-    let mut broadcast_subscriber = channel.on_broadcast("Test message");
+    let mut broadcast_subscriber = channel.on_broadcast("Test message").await;
     tokio::spawn(async move {
         while let Some(msg) = broadcast_subscriber.next().await {
             println!("{:?}", msg);
@@ -40,13 +40,12 @@ pub async fn main() -> Result<(), Error> {
     });
 
     // Subscribe to presence messages
-    let mut presence_subscriber = channel.on_presence();
+    let mut presence_subscriber = channel.on_presence().await;
     tokio::spawn(async move {
         while let Some(msg) = presence_subscriber.next().await {
             println!("{:?}", msg);
         }
     });
 
-    // Start listening for messages
-    channel.subscribe().await
+    loop {}
 }
