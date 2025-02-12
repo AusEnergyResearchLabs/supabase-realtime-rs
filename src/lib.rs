@@ -23,6 +23,7 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
+/// Supabase realtime client.
 #[derive(Debug)]
 pub struct Client {
     sender: mpsc::Sender<PhoenixMessage>,
