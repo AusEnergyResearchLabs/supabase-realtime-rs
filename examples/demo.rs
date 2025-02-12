@@ -18,17 +18,17 @@ pub async fn main() {
         .await
         .unwrap();
 
-    /*client
-    .broadcast(
-        "test",
-        BroadcastPayload {
-            event: "Wow!".to_string(),
-            payload: HashMap::new(),
-            broadcast_type: "broadcast".to_string(),
-        },
-    )
-    .await
-    .unwrap();*/
+    client
+        .broadcast(
+            "test",
+            BroadcastPayload {
+                event: "Test message".to_string(),
+                payload: HashMap::from([("message".to_owned(), "Hello world".into())]),
+                broadcast_type: "broadcast".to_string(),
+            },
+        )
+        .await
+        .unwrap();
 
     println!("Ready");
 
