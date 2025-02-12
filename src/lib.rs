@@ -31,7 +31,18 @@ pub struct Client {
 }
 
 impl Client {
-    /// Creates a new realtime client.
+    /// Create a new realtime client.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use supabase_realtime::Client;
+    /// # tokio_test::block_on(async {
+    /// let url = "ws://localhost:54321/realtime/v1/websocket";
+    /// let anon_token = "...";
+    /// let client = Client::connect(url, anon_token).await.unwrap();
+    /// # })
+    /// ```
     pub async fn connect(
         endpoint: impl Into<String>,
         token: impl Into<String>,
