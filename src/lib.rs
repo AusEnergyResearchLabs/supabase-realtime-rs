@@ -8,8 +8,8 @@ pub use protocol::{
 use channel::{Broadcast, Subscription};
 use futures::{SinkExt, StreamExt};
 use protocol::{
-    AccessTokenMessage, AccessTokenPayload, BroadcastMessage, Config, JoinMessage, JoinPayload,
-    PhoenixMessage, Status, Topic,
+    AccessTokenMessage, AccessTokenPayload, Config, JoinMessage, JoinPayload, PhoenixMessage,
+    Status, Topic,
 };
 use std::sync::{
     atomic::{AtomicU32, Ordering},
@@ -116,22 +116,6 @@ impl Client {
                     access_token: token.into(),
                 },
                 reference,
-            }))
-            .await?;
-
-        Ok(())
-    }
-
-    pub async fn broadcast(
-        &self,
-        topic: impl Into<String>,
-        payload: BroadcastPayload,
-    ) -> Result<(), Error> {
-        self.sender
-            .send(PhoenixMessage::Broadcast(BroadcastMessage {
-                topic: Topic::from(topic.into()),
-                payload,
-                reference: Some(self.reference.fetch_add(1, Ordering::Relaxed).to_string()),
             }))
             .await?;
 

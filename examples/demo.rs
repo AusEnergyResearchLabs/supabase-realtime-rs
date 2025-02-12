@@ -13,20 +13,25 @@ pub async fn main() {
         .await
         .unwrap();
 
+    // Open a channel
     let mut channel = client
-        .on_broadcast("test", BroadcastConfig::default())
+        .on_broadcast(
+            "test",
+            BroadcastConfig {
+                ack: true,
+                self_broadcast: true,
+            },
+        )
         .await
         .unwrap();
 
-    client
-        .broadcast(
-            "test",
-            BroadcastPayload {
-                event: "Test message".to_string(),
-                payload: HashMap::from([("message".to_owned(), "Hello world".into())]),
-                broadcast_type: "broadcast".to_string(),
-            },
-        )
+    // Send a broadcast message to the channel "test"
+    channel
+        .broadcast(BroadcastPayload {
+            event: "Test message".to_string(),
+            payload: HashMap::from([("message".to_owned(), "Hello world".into())]),
+            broadcast_type: "broadcast".to_string(),
+        })
         .await
         .unwrap();
 
