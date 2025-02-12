@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use serde_json::{Map, Value};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "event")]
@@ -96,6 +96,9 @@ impl<'de> Deserialize<'de> for Topic {
     }
 }
 
+/// Generic loosely-typed payload.
+type Payload = Map<String, Value>;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JoinMessage {
     pub topic: Topic,
@@ -112,7 +115,7 @@ pub struct JoinPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LeaveMessage {
     pub topic: Topic,
-    pub payload: HashMap<String, String>,
+    pub payload: Payload,
     #[serde(rename = "ref")]
     pub reference: String,
 }
@@ -120,7 +123,7 @@ pub struct LeaveMessage {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CloseMessage {
     pub topic: Topic,
-    pub payload: HashMap<String, String>,
+    pub payload: Payload,
     #[serde(rename = "ref")]
     pub reference: Option<String>,
 }
@@ -163,7 +166,7 @@ pub struct SystemPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HeartbeatMessage {
     pub topic: Topic,
-    pub payload: HashMap<String, String>,
+    pub payload: Payload,
     #[serde(rename = "ref")]
     pub reference: String,
 }
@@ -202,8 +205,8 @@ pub struct PostgresChangeData {
     pub commit_timestamp: String,
     #[serde(rename = "eventType")]
     pub event_type: PostgresEvent,
-    pub new: HashMap<String, serde_json::Value>,
-    pub old: HashMap<String, serde_json::Value>,
+    pub new: Payload,
+    pub old: Payload,
     pub errors: Option<String>,
 }
 
@@ -231,7 +234,7 @@ pub struct BroadcastMessage {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BroadcastPayload {
     pub event: String,
-    pub payload: HashMap<String, serde_json::Value>,
+    pub payload: Payload,
     #[serde(rename = "type")]
     pub broadcast_type: String,
 }
@@ -239,7 +242,7 @@ pub struct BroadcastPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PresenceStateMessage {
     pub topic: Topic,
-    pub payload: HashMap<String, PresenceMetas>,
+    pub payload: Payload,
     #[serde(rename = "ref")]
     pub reference: Option<String>,
 }
@@ -254,13 +257,8 @@ pub struct PresenceDiffMessage {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PresencePayload {
-    pub joins: HashMap<String, PresenceMetas>,
-    pub leaves: HashMap<String, PresenceMetas>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PresenceMetas {
-    pub metas: Vec<PresenceMeta>,
+    pub joins: Payload,
+    pub leaves: Payload,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

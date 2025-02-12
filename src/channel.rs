@@ -6,8 +6,8 @@ use crate::{
     },
     BroadcastPayload, Error,
 };
+use serde_json::Map;
 use std::{
-    collections::HashMap,
     marker::PhantomData,
     sync::{atomic::AtomicU32, Arc},
     task::Poll,
@@ -50,7 +50,7 @@ impl<T> Subscription<T> {
                 if let Err(e) = heartbeat_sender
                     .send(PhoenixMessage::Heartbeat(HeartbeatMessage {
                         topic: heartbeat_topic.clone(),
-                        payload: HashMap::new(),
+                        payload: Map::new(),
                         reference: fetch_ref(&heartbeat_reference).to_string(),
                     }))
                     .await

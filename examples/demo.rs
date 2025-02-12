@@ -1,5 +1,5 @@
 use futures::StreamExt;
-use std::collections::HashMap;
+use serde_json::Map;
 use supabase_realtime::{BroadcastConfig, BroadcastPayload, Client};
 
 #[tokio::main]
@@ -25,10 +25,12 @@ pub async fn main() {
         .unwrap();
 
     // Send a broadcast message to the channel "test"
+    let mut payload = Map::new();
+    payload.insert("Test message".to_owned(), "Hello world".into());
     channel
         .broadcast(BroadcastPayload {
             event: "Test message".to_string(),
-            payload: HashMap::from([("message".to_owned(), "Hello world".into())]),
+            payload,
             broadcast_type: "broadcast".to_string(),
         })
         .await
