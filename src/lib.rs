@@ -55,7 +55,7 @@ impl Client {
                                 message
                             }
                             Err(e) => {
-                                tracing::error!("failed to parse: {}", e);
+                                tracing::error!("failed to parse: {} error: {}", text, e);
                                 continue;
                             }
                         }
