@@ -4,16 +4,14 @@
 mod channel;
 mod protocol;
 
+pub use channel::Channel;
 pub use protocol::{
-    BroadcastConfig, BroadcastPayload, Payload, PostgresConfig, PostgresEvent, PresenceConfig,
+    BroadcastConfig, BroadcastPayload, ChannelConfig, Payload, PostgresConfig, PostgresEvent,
+    PresenceConfig,
 };
 
-use channel::{Broadcast, Subscription};
 use futures::{SinkExt, StreamExt};
-use protocol::{
-    AccessTokenMessage, AccessTokenPayload, BroadcastMessage, BroadcastType, Config, JoinMessage,
-    JoinPayload, PhoenixMessage, Status, Topic,
-};
+use protocol::*;
 use std::sync::{
     atomic::{AtomicU32, Ordering},
     Arc,
@@ -24,7 +22,7 @@ use tokio::{
 };
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
-type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
+pub type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 /// Supabase realtime client.
 #[derive(Debug)]
@@ -141,34 +139,12 @@ impl Client {
         Ok(())
     }
 
-    /// Send broadcast message.
-    pub async fn broadcast(
-        &self,
-        topic: impl Into<String>,
-        event: impl Into<String>,
-        payload: Payload,
-    ) -> Result<(), Error> {
-        self.sender
-            .send(PhoenixMessage::Broadcast(BroadcastMessage {
-                topic: Topic::new(topic),
-                payload: BroadcastPayload {
-                    event: event.into(),
-                    payload,
-                    broadcast_type: BroadcastType::Broadcast,
-                },
-                reference: Some(fetch_ref(&self.reference).to_string()),
-            }))
-            .await?;
-
-        Ok(())
-    }
-
-    /// Listen to broadcast messages.
-    pub async fn on_broadcast(
+    /// Open a new channel.
+    pub async fn channel(
         &mut self,
         topic: impl Into<String>,
-        config: BroadcastConfig,
-    ) -> Result<Subscription<Broadcast>, Error> {
+        config: ChannelConfig,
+    ) -> Result<Channel, Error> {
         let topic = topic.into();
 
         let (sender, mut receiver) = mpsc::channel(128);
@@ -178,9 +154,7 @@ impl Client {
         self.sender
             .send(PhoenixMessage::Join(JoinMessage {
                 topic: topic.clone().into(),
-                payload: JoinPayload {
-                    config: Config::broadcast(config),
-                },
+                payload: JoinPayload { config },
                 reference: reference.clone(),
             }))
             .await?;
@@ -193,7 +167,7 @@ impl Client {
                     if let Some(response_ref) = reply.reference {
                         if response_ref == reference {
                             if reply.payload.status == Status::Ok {
-                                return Ok(Subscription::<Broadcast>::new(
+                                return Ok(Channel::new(
                                     topic.into(),
                                     receiver,
                                     self.sender.clone(),

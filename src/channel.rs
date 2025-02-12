@@ -1,35 +1,24 @@
-use crate::{
-    fetch_ref,
-    protocol::{
-        BroadcastMessage, HeartbeatMessage, PhoenixMessage, PostgresChangesMessage,
-        PresenceDiffMessage, PresenceStateMessage, Topic,
-    },
-};
+use crate::{fetch_ref, protocol::*, Error};
 use serde_json::Map;
 use std::{
-    marker::PhantomData,
     sync::{atomic::AtomicU32, Arc},
     task::Poll,
 };
 use tokio::{sync::mpsc, task};
 
-#[derive(Debug)]
-pub struct Broadcast;
-
-#[derive(Debug)]
-pub struct Presence;
-
-#[derive(Debug)]
-pub struct Postgres;
-
 /// Subscription instance.
-pub struct Subscription<T> {
-    pub(crate) _t: PhantomData<T>,
-    pub(crate) receiver: mpsc::Receiver<PhoenixMessage>,
-    pub(crate) heartbeat_handle: task::AbortHandle,
+pub struct Channel {
+    topic: Topic,
+    receiver: mpsc::Receiver<PhoenixMessage>,
+    sender: mpsc::Sender<PhoenixMessage>,
+    reference: Arc<AtomicU32>,
+    heartbeat_handle: task::AbortHandle,
+    broadcast_subscriptions: Vec<(String, mpsc::Sender<BroadcastMessage>)>,
+    presence_subscriptions: Vec<mpsc::Sender<PresenceMessage>>,
+    postgres_subscriptions: Vec<mpsc::Sender<PostgresMessage>>,
 }
 
-impl<T> Subscription<T> {
+impl Channel {
     pub(crate) fn new(
         topic: Topic,
         receiver: mpsc::Receiver<PhoenixMessage>,
@@ -37,14 +26,17 @@ impl<T> Subscription<T> {
         reference: Arc<AtomicU32>,
     ) -> Self {
         // spawn heartbeat task. cleaned up on drop.
+        let heartbeat_topic = topic.clone();
+        let heartbeat_sender = sender.clone();
+        let heartbeat_reference = reference.clone();
         let heartbeat_handle = task::spawn(async move {
             loop {
                 tokio::time::sleep(tokio::time::Duration::from_secs(25)).await;
-                if let Err(e) = sender
+                if let Err(e) = heartbeat_sender
                     .send(PhoenixMessage::Heartbeat(HeartbeatMessage {
-                        topic: topic.clone(),
+                        topic: heartbeat_topic.clone(),
                         payload: Map::new(),
-                        reference: fetch_ref(&reference).to_string(),
+                        reference: fetch_ref(&heartbeat_reference).to_string(),
                     }))
                     .await
                 {
@@ -55,21 +47,152 @@ impl<T> Subscription<T> {
         .abort_handle();
 
         Self {
-            _t: PhantomData::default(),
+            topic,
             receiver,
+            sender,
+            reference,
             heartbeat_handle,
+            broadcast_subscriptions: Vec::new(),
+            presence_subscriptions: Vec::new(),
+            postgres_subscriptions: Vec::new(),
         }
+    }
+
+    /// Create a broadcast subscriber.
+    pub fn on_broadcast(&mut self, event: impl Into<String>) -> Subscription<BroadcastMessage> {
+        let (sender, receiver) = mpsc::channel(128);
+        self.broadcast_subscriptions.push((event.into(), sender));
+        Subscription { receiver }
+    }
+
+    /// Send broadcast message.
+    pub async fn broadcast(&self, event: impl Into<String>, payload: Payload) -> Result<(), Error> {
+        self.sender
+            .send(PhoenixMessage::Broadcast(BroadcastMessage {
+                topic: self.topic.clone(),
+                payload: BroadcastPayload {
+                    event: event.into(),
+                    payload: Some(payload),
+                    broadcast_type: BroadcastType::Broadcast,
+                },
+                reference: Some(fetch_ref(&self.reference).to_string()),
+            }))
+            .await?;
+        Ok(())
+    }
+
+    /// Create a broadcast subscriber.
+    pub fn on_presence(&mut self) -> Subscription<PresenceMessage> {
+        let (sender, receiver) = mpsc::channel(128);
+        self.presence_subscriptions.push(sender);
+        Subscription { receiver }
+    }
+
+    /// Send state to subscribers.
+    pub async fn track(&self, state: Payload) -> Result<(), Error> {
+        self.sender
+            .send(PhoenixMessage::Broadcast(BroadcastMessage {
+                topic: self.topic.clone(),
+                payload: BroadcastPayload {
+                    event: "track".to_owned(),
+                    payload: Some(state),
+                    broadcast_type: BroadcastType::Presence,
+                },
+                reference: Some(fetch_ref(&self.reference).to_string()),
+            }))
+            .await?;
+        Ok(())
+    }
+
+    /// Stop listening to presence events.
+    pub async fn untrack(&self) -> Result<(), Error> {
+        self.sender
+            .send(PhoenixMessage::Broadcast(BroadcastMessage {
+                topic: self.topic.clone(),
+                payload: BroadcastPayload {
+                    event: "untrack".to_owned(),
+                    payload: None,
+                    broadcast_type: BroadcastType::Presence,
+                },
+                reference: Some(fetch_ref(&self.reference).to_string()),
+            }))
+            .await?;
+        Ok(())
+    }
+
+    /// Create a broadcast subscriber.
+    pub fn on_postgres(&mut self) -> Subscription<PostgresMessage> {
+        let (sender, receiver) = mpsc::channel(128);
+        self.postgres_subscriptions.push(sender);
+        Subscription { receiver }
+    }
+
+    /// Listen for messages and feed subscribers.
+    pub async fn subscribe(&mut self) -> Result<(), Error> {
+        while let Some(message) = self.receiver.recv().await {
+            match message {
+                PhoenixMessage::Broadcast(bcast) => {
+                    self.broadcast_subscriptions.retain(|(event, sender)| {
+                        if event != bcast.payload.event.as_str() {
+                            true
+                        } else {
+                            match sender.try_send(bcast.clone()) {
+                                Ok(_) => true,
+                                Err(mpsc::error::TrySendError::Full(_)) => true,
+                                Err(mpsc::error::TrySendError::Closed(_)) => false,
+                            }
+                        }
+                    });
+                }
+                PhoenixMessage::PresenceState(state) => {
+                    self.presence_subscriptions.retain(|sender| {
+                        match sender.try_send(PresenceMessage::State(state.clone())) {
+                            Ok(_) => true,
+                            Err(mpsc::error::TrySendError::Full(_)) => true,
+                            Err(mpsc::error::TrySendError::Closed(_)) => false,
+                        }
+                    });
+                }
+                PhoenixMessage::PresenceDiff(diff) => {
+                    self.presence_subscriptions.retain(|sender| {
+                        match sender.try_send(PresenceMessage::Diff(diff.clone())) {
+                            Ok(_) => true,
+                            Err(mpsc::error::TrySendError::Full(_)) => true,
+                            Err(mpsc::error::TrySendError::Closed(_)) => false,
+                        }
+                    });
+                }
+                PhoenixMessage::Postgres(pg) => {
+                    self.postgres_subscriptions.retain(|sender| {
+                        match sender.try_send(pg.clone()) {
+                            Ok(_) => true,
+                            Err(mpsc::error::TrySendError::Full(_)) => true,
+                            Err(mpsc::error::TrySendError::Closed(_)) => false,
+                        }
+                    });
+                }
+                _ => {}
+            }
+        }
+
+        Ok(())
     }
 }
 
-impl<T> Drop for Subscription<T> {
+impl Drop for Channel {
     fn drop(&mut self) {
         self.heartbeat_handle.abort();
     }
 }
 
-impl futures::Stream for Subscription<Broadcast> {
-    type Item = BroadcastMessage;
+/// Message subscription.
+#[derive(Debug)]
+pub struct Subscription<T> {
+    receiver: mpsc::Receiver<T>,
+}
+
+impl<T> futures::Stream for Subscription<T> {
+    type Item = T;
 
     fn poll_next(
         mut self: std::pin::Pin<&mut Self>,
@@ -77,11 +200,7 @@ impl futures::Stream for Subscription<Broadcast> {
     ) -> Poll<Option<Self::Item>> {
         match self.receiver.poll_recv(cx) {
             Poll::Ready(msg) => match msg {
-                Some(PhoenixMessage::Broadcast(bcast)) => Poll::Ready(Some(bcast)),
-                Some(_) => {
-                    cx.waker().wake_by_ref();
-                    Poll::Pending
-                }
+                Some(msg) => Poll::Ready(Some(msg)),
                 None => Poll::Ready(None),
             },
             Poll::Pending => {
@@ -92,47 +211,9 @@ impl futures::Stream for Subscription<Broadcast> {
     }
 }
 
+/// Presence message.
 #[derive(Debug)]
 pub enum PresenceMessage {
     State(PresenceStateMessage),
     Diff(PresenceDiffMessage),
-}
-
-impl futures::Stream for Subscription<Presence> {
-    type Item = PresenceMessage;
-
-    fn poll_next(
-        mut self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
-        match self.receiver.poll_recv(cx) {
-            Poll::Ready(msg) => match msg {
-                Some(PhoenixMessage::PresenceState(state)) => {
-                    Poll::Ready(Some(PresenceMessage::State(state)))
-                }
-                Some(PhoenixMessage::PresenceDiff(diff)) => {
-                    Poll::Ready(Some(PresenceMessage::Diff(diff)))
-                }
-                _ => Poll::Pending,
-            },
-            Poll::Pending => Poll::Pending,
-        }
-    }
-}
-
-impl futures::Stream for Subscription<Postgres> {
-    type Item = PostgresChangesMessage;
-
-    fn poll_next(
-        mut self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Self::Item>> {
-        match self.receiver.poll_recv(cx) {
-            Poll::Ready(msg) => match msg {
-                Some(PhoenixMessage::PostgresChanges(changes)) => Poll::Ready(Some(changes)),
-                _ => Poll::Pending,
-            },
-            Poll::Pending => Poll::Pending,
-        }
-    }
 }
