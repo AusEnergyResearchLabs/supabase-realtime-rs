@@ -202,10 +202,7 @@ impl<T> futures::Stream for Subscription<T> {
                 Some(msg) => Poll::Ready(Some(msg)),
                 None => Poll::Ready(None),
             },
-            Poll::Pending => {
-                cx.waker().wake_by_ref();
-                Poll::Pending
-            }
+            Poll::Pending => Poll::Pending,
         }
     }
 }
