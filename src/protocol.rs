@@ -109,7 +109,40 @@ pub struct JoinMessage {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JoinPayload {
-    pub config: Config,
+    pub config: ChannelConfig,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ChannelConfig {
+    pub broadcast: Option<BroadcastConfig>,
+    pub presence: Option<PresenceConfig>,
+    pub postgres: Option<Vec<PostgresConfig>>,
+}
+
+/// Broadcast channel configuration.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct BroadcastConfig {
+    /// Server confirms each message has been received.
+    pub ack: bool,
+    /// Receive own messages.
+    #[serde(rename = "self")]
+    pub self_broadcast: bool,
+}
+
+/// Presence channel configuration.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct PresenceConfig {
+    pub key: String,
+}
+
+/// Postgres CDC channel configuration.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct PostgresConfig {
+    pub id: Option<i64>,
+    pub event: PostgresEvent,
+    pub schema: String,
+    pub table: String,
+    pub filter: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -267,62 +300,6 @@ pub struct PresenceDiffMessage {
 pub struct PresencePayload {
     pub joins: Payload,
     pub leaves: Payload,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct Config {
-    pub broadcast: Option<BroadcastConfig>,
-    pub presence: Option<PresenceConfig>,
-    pub postgres: Option<Vec<PostgresConfig>>,
-}
-
-impl Config {
-    pub fn broadcast(config: BroadcastConfig) -> Self {
-        Self {
-            broadcast: Some(config),
-            ..Default::default()
-        }
-    }
-
-    pub fn presence(config: PresenceConfig) -> Self {
-        Self {
-            presence: Some(config),
-            ..Default::default()
-        }
-    }
-
-    pub fn postgres(config: Vec<PostgresConfig>) -> Self {
-        Self {
-            postgres: Some(config),
-            ..Default::default()
-        }
-    }
-}
-
-/// Broadcast channel configuration.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct BroadcastConfig {
-    /// Server confirms each message has been received.
-    pub ack: bool,
-    /// Receive own messages.
-    #[serde(rename = "self")]
-    pub self_broadcast: bool,
-}
-
-/// Presence channel configuration.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct PresenceConfig {
-    pub key: String,
-}
-
-/// Postgres CDC channel configuration.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct PostgresConfig {
-    pub id: Option<i64>,
-    pub event: PostgresEvent,
-    pub schema: String,
-    pub table: String,
-    pub filter: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
