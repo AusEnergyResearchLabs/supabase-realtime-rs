@@ -26,7 +26,7 @@ pub struct Postgres;
 pub struct Subscription<T> {
     pub(crate) _t: PhantomData<T>,
     pub(crate) receiver: mpsc::Receiver<PhoenixMessage>,
-    pub(crate) heartbeat: task::AbortHandle,
+    pub(crate) heartbeat_handle: task::AbortHandle,
 }
 
 impl<T> Subscription<T> {
@@ -37,7 +37,7 @@ impl<T> Subscription<T> {
         reference: Arc<AtomicU32>,
     ) -> Self {
         // spawn heartbeat task. cleaned up on drop.
-        let heartbeat = task::spawn(async move {
+        let heartbeat_handle = task::spawn(async move {
             loop {
                 tokio::time::sleep(tokio::time::Duration::from_secs(25)).await;
                 if let Err(e) = sender
@@ -57,14 +57,14 @@ impl<T> Subscription<T> {
         Self {
             _t: PhantomData::default(),
             receiver,
-            heartbeat,
+            heartbeat_handle,
         }
     }
 }
 
 impl<T> Drop for Subscription<T> {
     fn drop(&mut self) {
-        self.heartbeat.abort();
+        self.heartbeat_handle.abort();
     }
 }
 
