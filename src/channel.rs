@@ -55,7 +55,7 @@ impl<T> Subscription<T> {
                     }))
                     .await
                 {
-                    tracing::error!("Send heartbeat failed: {}", e);
+                    tracing::error!("failed to send heartbeat: {}", e);
                 }
             }
         })
