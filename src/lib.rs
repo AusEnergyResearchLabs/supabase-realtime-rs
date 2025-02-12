@@ -4,7 +4,7 @@
 mod channel;
 mod protocol;
 
-pub use channel::Channel;
+pub use channel::{Channel, PresenceMessage};
 pub use protocol::{
     BroadcastConfig, BroadcastPayload, ChannelConfig, Payload, PostgresConfig, PostgresEvent,
     PresenceConfig,
