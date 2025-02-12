@@ -125,7 +125,7 @@ pub struct ReplyMessage {
     pub topic: Topic,
     pub payload: ReplyPayload,
     #[serde(rename = "ref")]
-    pub reference: String,
+    pub reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -305,7 +305,7 @@ pub struct PresenceMeta {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReplyResponse {
-    pub postgres_changes: Vec<PostgresChangeData>,
+    pub postgres_changes: Option<Vec<PostgresChangeData>>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
