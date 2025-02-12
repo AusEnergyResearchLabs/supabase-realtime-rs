@@ -1,5 +1,5 @@
 use futures::StreamExt;
-use supabase_realtime::{ChannelConfig, Client, Error};
+use supabase_realtime::{BroadcastConfig, ChannelConfig, Client, Error, Payload};
 
 #[tokio::main]
 pub async fn main() -> Result<(), Error> {
@@ -14,8 +14,20 @@ pub async fn main() -> Result<(), Error> {
         .channel(
             "test",
             ChannelConfig {
+                broadcast: Some(BroadcastConfig {
+                    ack: false,
+                    self_broadcast: true,
+                }),
                 ..Default::default()
             },
+        )
+        .await?;
+
+    // Send a broadcast message
+    channel
+        .broadcast(
+            "Test message",
+            Payload::from([("message".to_owned(), "Hello world".into())]),
         )
         .await?;
 
