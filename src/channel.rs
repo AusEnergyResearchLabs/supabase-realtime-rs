@@ -15,6 +15,7 @@ pub struct Channel {
     topic: Topic,
     sender: mpsc::Sender<PhoenixMessage>,
     reference: Arc<AtomicU32>,
+    join_reference: String,
     heartbeat_handle: task::AbortHandle,
     incoming_handle: task::AbortHandle,
     broadcast_subscriptions: SharedSenders<(String, mpsc::Sender<BroadcastMessage>)>,
@@ -28,6 +29,7 @@ impl Channel {
         receiver: mpsc::Receiver<PhoenixMessage>,
         sender: mpsc::Sender<PhoenixMessage>,
         reference: Arc<AtomicU32>,
+        join_reference: String,
     ) -> Self {
         // spawn heartbeat task. cleaned up on drop.
         let heartbeat_topic = topic.clone();
@@ -120,6 +122,7 @@ impl Channel {
             topic,
             sender,
             reference,
+            join_reference,
             heartbeat_handle,
             incoming_handle,
             broadcast_subscriptions,
@@ -149,9 +152,10 @@ impl Channel {
                 payload: BroadcastPayload {
                     event: event.into(),
                     payload: Some(payload),
-                    broadcast_type: BroadcastType::Broadcast,
+                    broadcast_type: Some(BroadcastType::Broadcast),
                 },
                 reference: Some(fetch_ref(&self.reference).to_string()),
+                join_reference: Some(self.join_reference.clone()),
             }))
             .await?;
         Ok(())
@@ -167,14 +171,15 @@ impl Channel {
     /// Send state to subscribers.
     pub async fn track(&self, state: Payload) -> Result<(), Error> {
         self.sender
-            .send(PhoenixMessage::Broadcast(BroadcastMessage {
+            .send(PhoenixMessage::Presence(Presence {
                 topic: self.topic.clone(),
-                payload: BroadcastPayload {
+                payload: PresencePayload {
+                    payload_type: "presence".to_owned(),
                     event: "track".to_owned(),
-                    payload: Some(state),
-                    broadcast_type: BroadcastType::Presence,
+                    payload: state,
                 },
-                reference: Some(fetch_ref(&self.reference).to_string()),
+                reference: fetch_ref(&self.reference).to_string(),
+                join_reference: Some(self.join_reference.clone()),
             }))
             .await?;
         Ok(())
@@ -188,9 +193,10 @@ impl Channel {
                 payload: BroadcastPayload {
                     event: "untrack".to_owned(),
                     payload: None,
-                    broadcast_type: BroadcastType::Presence,
+                    broadcast_type: None,
                 },
                 reference: Some(fetch_ref(&self.reference).to_string()),
+                join_reference: Some(self.join_reference.clone()),
             }))
             .await?;
         Ok(())

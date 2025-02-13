@@ -159,6 +159,7 @@ impl Client {
                 topic: topic.clone().into(),
                 payload: JoinPayload { config },
                 reference: reference.clone(),
+                join_reference: Some(reference.clone()),
             }))
             .await?;
 
@@ -168,13 +169,14 @@ impl Client {
             match response {
                 Some(PhoenixMessage::Reply(reply)) => {
                     if let Some(response_ref) = reply.reference {
-                        if response_ref == reference {
+                        if response_ref == reference.to_string() {
                             if reply.payload.status == Status::Ok {
                                 return Ok(Channel::new(
                                     topic.into(),
                                     receiver,
                                     self.sender.clone(),
                                     self.reference.clone(),
+                                    reference,
                                 ));
                             } else {
                                 return Err(Error::from("failed to join channel"));

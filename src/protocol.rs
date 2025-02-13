@@ -23,6 +23,8 @@ pub enum PhoenixMessage {
     Postgres(PostgresMessage),
     #[serde(rename = "broadcast")]
     Broadcast(BroadcastMessage),
+    #[serde(rename = "presence")]
+    Presence(Presence),
     #[serde(rename = "presence_state")]
     PresenceState(PresenceStateMessage),
     #[serde(rename = "presence_diff")]
@@ -41,6 +43,7 @@ impl PhoenixMessage {
             PhoenixMessage::AccessToken(acc) => &acc.topic,
             PhoenixMessage::Postgres(pg) => &pg.topic,
             PhoenixMessage::Broadcast(bcast) => &bcast.topic,
+            PhoenixMessage::Presence(pres) => &pres.topic,
             PhoenixMessage::PresenceState(pstate) => &pstate.topic,
             PhoenixMessage::PresenceDiff(pdiff) => &pdiff.topic,
         }
@@ -106,6 +109,8 @@ pub struct JoinMessage {
     pub payload: JoinPayload,
     #[serde(rename = "ref")]
     pub reference: String,
+    #[serde(rename = "join_ref", skip_serializing_if = "Option::is_none")]
+    pub join_reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -118,6 +123,7 @@ pub struct ChannelConfig {
     pub broadcast: Option<BroadcastConfig>,
     pub presence: Option<PresenceConfig>,
     pub postgres: Option<Vec<PostgresConfig>>,
+    pub private: bool,
 }
 
 /// Broadcast channel configuration.
@@ -262,6 +268,8 @@ pub struct BroadcastMessage {
     pub payload: BroadcastPayload,
     #[serde(rename = "ref")]
     pub reference: Option<String>,
+    #[serde(rename = "join_ref", skip_serializing_if = "Option::is_none")]
+    pub join_reference: Option<String>,
 }
 
 /// Broadcast message payload.
@@ -270,8 +278,8 @@ pub struct BroadcastPayload {
     pub event: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payload: Option<Payload>,
-    #[serde(rename = "type")]
-    pub broadcast_type: BroadcastType,
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub broadcast_type: Option<BroadcastType>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -280,6 +288,24 @@ pub enum BroadcastType {
     Broadcast,
     Presence,
     Postgres,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Presence {
+    pub topic: Topic,
+    pub payload: PresencePayload,
+    #[serde(rename = "ref")]
+    pub reference: String,
+    #[serde(rename = "join_ref", skip_serializing_if = "Option::is_none")]
+    pub join_reference: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PresencePayload {
+    #[serde(rename = "type")]
+    pub payload_type: String,
+    pub event: String,
+    pub payload: Payload,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -293,13 +319,13 @@ pub struct PresenceStateMessage {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PresenceDiffMessage {
     pub topic: Topic,
-    pub payload: PresencePayload,
+    pub payload: PresenceDiffPayload,
     #[serde(rename = "ref")]
     pub reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PresencePayload {
+pub struct PresenceDiffPayload {
     pub joins: BTreeMap<String, PresenceMetas>,
     pub leaves: BTreeMap<String, PresenceMetas>,
 }
