@@ -64,6 +64,7 @@ impl Client {
             while let Some(message) = read.next().await {
                 let message = match message {
                     Ok(Message::Text(text)) => {
+                        tracing::debug!("recv: {}", text);
                         match serde_json::from_str::<PhoenixMessage>(&text) {
                             Ok(message) => {
                                 tracing::debug!("recv: {:?}", message);

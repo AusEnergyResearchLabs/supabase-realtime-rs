@@ -13,6 +13,8 @@ pub enum PhoenixMessage {
     Close(CloseMessage),
     #[serde(rename = "phx_reply")]
     Reply(ReplyMessage),
+    #[serde(rename = "phx_error")]
+    Error(ErrorMessage),
     #[serde(rename = "system")]
     System(SystemMessage),
     #[serde(rename = "heartbeat")]
@@ -38,6 +40,7 @@ impl PhoenixMessage {
             PhoenixMessage::Leave(leave) => &leave.topic,
             PhoenixMessage::Close(close) => &close.topic,
             PhoenixMessage::Reply(reply) => &reply.topic,
+            PhoenixMessage::Error(err) => &err.topic,
             PhoenixMessage::System(sys) => &sys.topic,
             PhoenixMessage::Heartbeat(heart) => &heart.topic,
             PhoenixMessage::AccessToken(acc) => &acc.topic,
@@ -172,6 +175,14 @@ pub struct CloseMessage {
 pub struct ReplyMessage {
     pub topic: Topic,
     pub payload: ReplyPayload,
+    #[serde(rename = "ref")]
+    pub reference: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ErrorMessage {
+    pub topic: Topic,
+    pub payload: Payload,
     #[serde(rename = "ref")]
     pub reference: Option<String>,
 }
